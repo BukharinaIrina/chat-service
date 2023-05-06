@@ -4,7 +4,6 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 
-
 class ChatServiceTest {
 
     @Before
@@ -14,134 +13,301 @@ class ChatServiceTest {
 
     @Test
     fun chatCreateAddMessage_createAdd() {
-        val result = ChatService.chatCreateAddMessage(1, Message("message_1", false))
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(1, Message(text = "message"))
+        val result = ChatService.getChats(1)
         assertNotNull(result)
     }
 
     @Test
     fun chatEditMessage_edit() {
-        ChatService.chatCreateAddMessage(1, Message("message_1", false))
-        ChatService.chatCreateAddMessage(1, Message("message_2", false))
-        val result = ChatService.chatEditMessage(1,2)
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        val result = ChatService.chatEditMessage(
+            mutableListOf(Pair(2, 1)),
+            1, 1, "newMessageText"
+        )
         assertTrue(result)
     }
 
     @Test(expected = ChatNotFoundException::class)
     fun chatEditMessage_noChat() {
-        ChatService.chatCreateAddMessage(1, Message("message_1", false))
-        ChatService.chatEditMessage(2,1)
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        ChatService.chatEditMessage(
+            mutableListOf(Pair(2, 3)),
+            1, 1, "newMessageText"
+        )
+    }
+
+    @Test
+    fun chatEditMessage_noAuthorMessage() {
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        val result = ChatService.chatEditMessage(
+            mutableListOf(Pair(2, 1)),
+            8, 1, "newMessageText"
+        )
+        assertTrue(result)
+    }
+
+    @Test
+    fun chatEditMessage_noMessage() {
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        val result = ChatService.chatEditMessage(
+            mutableListOf(Pair(2, 1)),
+            1, 3, "newMessageText"
+        )
+        assertTrue(result)
     }
 
     @Test
     fun chatDeleteMessage_delete() {
-        ChatService.chatCreateAddMessage(1, Message("message_1", false))
-        ChatService.chatCreateAddMessage(1, Message("message_2", false))
-        ChatService.chatCreateAddMessage(2, Message("message_1", false))
-        ChatService.chatCreateAddMessage(2, Message("message_2", false))
-        val result = ChatService.chatDeleteMessage(2,1)
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        val result = ChatService.chatDeleteMessage(
+            mutableListOf(Pair(2, 1)),
+            1, 1
+        )
         assertTrue(result)
     }
 
     @Test(expected = ChatNotFoundException::class)
     fun chatDeleteMessage_noChat() {
-        ChatService.chatCreateAddMessage(1, Message("message_1", false))
-        ChatService.chatCreateAddMessage(2, Message("message_1", false))
-        ChatService.chatDeleteMessage(3,1)
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        ChatService.chatDeleteMessage(
+            mutableListOf(Pair(2, 3)),
+            1, 1
+        )
+    }
+
+    @Test
+    fun chatDeleteMessage_noAuthorMessage() {
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        val result = ChatService.chatDeleteMessage(
+            mutableListOf(Pair(2, 1)),
+            8, 1
+        )
+        assertTrue(result)
+    }
+
+    @Test
+    fun chatDeleteMessage_noMessage() {
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        val result = ChatService.chatDeleteMessage(
+            mutableListOf(Pair(2, 1)),
+            1, 3
+        )
+        assertTrue(result)
     }
 
     @Test
     fun chatDelete_delete() {
-        ChatService.chatCreateAddMessage(1, Message("message_1", false))
-        val result = ChatService.chatDelete(1)
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        val result = ChatService.chatDelete(mutableListOf(Pair(1, 2)))
         assertTrue(result)
     }
 
     @Test(expected = ChatNotFoundException::class)
     fun chatDelete_noChat() {
-        ChatService.chatCreateAddMessage(1, Message("message_1", false))
-        ChatService.chatDelete(2)
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        ChatService.chatDelete(mutableListOf(Pair(1, 3)))
     }
 
     @Test
     fun getChats_get() {
-        ChatService.chatCreateAddMessage(1, Message("message_1", false))
-        ChatService.chatCreateAddMessage(2, Message("message_1", false))
-        val result = ChatService.getChats()
-        assertNotNull(result)
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(1, Message(text = "message"))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(3, Message(text = "message"))
+        val chat = mutableMapOf(
+            Pair(
+                mutableListOf(Pair(1, 2)),
+                Chat(
+                    messages = mutableListOf(
+                        Message(1, "message", true),
+                        Message(2, "message", false)
+                    )
+                )
+            ),
+            Pair(
+                mutableListOf(Pair(2, 3)),
+                Chat(
+                    messages = mutableListOf(
+                        Message(2, "message", false)
+                    )
+                )
+            )
+        )
+        val result = ChatService.getChats(2)
+        assertEquals(chat, result)
+    }
+
+    @Test
+    fun getChats_noChats() {
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(1, Message(text = "message"))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(3, Message(text = "message"))
+        ChatService.chatDelete(mutableListOf(Pair(2, 3)))
+        val chat = mutableMapOf<MutableList<Pair<Int, Int>>, Chat>()
+        val result = ChatService.getChats(3)
+        assertEquals(chat, result)
     }
 
     @Test
     fun getChat_get() {
-        ChatService.chatCreateAddMessage(1, Message("message_1", false))
-        ChatService.chatCreateAddMessage(2, Message("message_1", false))
-        ChatService.chatCreateAddMessage(3, Message("message_1", false))
-        val result = ChatService.getChat(2)
-        assertNotNull(result)
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(1, Message(text = "message"))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(3, Message(text = "message"))
+        val chat = mutableMapOf(
+            Pair(
+                mutableListOf(Pair(2, 3)),
+                Chat(
+                    messages = mutableListOf(
+                        Message(2, "message", false)
+                    )
+                )
+            )
+        )
+        val result = ChatService.getChat(mutableListOf(Pair(2, 3)))
+        assertEquals(chat, result)
     }
 
     @Test(expected = ChatNotFoundException::class)
     fun getChat_noChat() {
-        ChatService.chatCreateAddMessage(1, Message("message_1", false))
-        ChatService.getChat(2)
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(1, Message(text = "message"))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(3, Message(text = "message"))
+        ChatService.getChat(mutableListOf(Pair(2, 4)))
     }
 
     @Test
     fun getListMessagesOfChat_list() {
-        ChatService.chatCreateAddMessage(1, Message("message_1", false))
-        ChatService.chatCreateAddMessage(1, Message("message_2", false))
-        ChatService.chatCreateAddMessage(1, Message("message_3", false))
-        val list = listOf(Message("message_1", true),
-            Message("message_2", true),Message("message_3", true))
-        val result = ChatService.getListMessagesOfChat(1,1,2)
-
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(1, Message(text = "message"))
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        val list = listOf(
+            Message(1, "message", true),
+            Message(2, "message", true),
+            Message(1, "message", true)
+        )
+        val result = ChatService.getListMessagesOfChat(mutableListOf(Pair(1, 2)), 1, 2)
         assertEquals(list, result)
     }
 
     @Test(expected = ChatNotFoundException::class)
     fun getListMessagesOfChat_noChat() {
-        ChatService.chatCreateAddMessage(1, Message("message_1", false))
-        ChatService.chatCreateAddMessage(1, Message("message_2", false))
-        ChatService.chatCreateAddMessage(1, Message("message_3", false))
-        ChatService.getListMessagesOfChat(2,1,2)
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        ChatService.chatDelete(mutableListOf(Pair(1, 2)))
+        ChatService.getListMessagesOfChat(mutableListOf(Pair(1, 2)), 1, 2)
     }
 
     @Test
-    fun getUnreadChatsCount_count() {
-        ChatService.chatCreateAddMessage(1, Message("message_1", true))
-        ChatService.chatCreateAddMessage(1, Message("message_2", false))
-        ChatService.chatCreateAddMessage(2, Message("message_1", false))
-        ChatService.chatCreateAddMessage(3, Message("message_1", true))
-        val result = ChatService.getUnreadChatsCount()
-        assertEquals(2, result)
+    fun getListMessagesOfChat_errorMessageOrCount() {
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(1, Message(text = "message"))
+        val list = listOf<Message>()
+        val result = ChatService.getListMessagesOfChat(mutableListOf(Pair(1, 2)), 4, 7)
+        assertEquals(list, result)
     }
 
     @Test
-    fun getUnreadChatsCount_noChats() {
-        ChatService.chatCreateAddMessage(1, Message("message_1", true))
-        ChatService.chatDelete(1)
-        val result = ChatService.getUnreadChatsCount()
+    fun getUnreadChatsCount_flagsTrue() {
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(1, Message(text = "message", readFlag = true))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(3, Message(text = "message", readFlag = true))
+        ChatService.currentUserId = 3
+        ChatService.chatCreateAddMessage(2, Message(text = "message", readFlag = true))
+        val result = ChatService.getUnreadChatsCount(2)
         assertEquals(0, result)
     }
 
     @Test
-    fun getLastMessagesOfChats() {
-        ChatService.chatCreateAddMessage(1, Message("message_1", true))
-        ChatService.chatCreateAddMessage(1, Message("message_2", false))
-        ChatService.chatCreateAddMessage(2, Message("message_1", false))
-        ChatService.chatCreateAddMessage(3, Message("message_1", true))
-        val string = listOf("message_2", "message_1", "message_1")
-        val result = ChatService.getLastMessagesOfChats()
+    fun getUnreadChatsCount_flagsFalse() {
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(1, Message(text = "message"))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(3, Message(text = "message"))
+        ChatService.currentUserId = 3
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        val result = ChatService.getUnreadChatsCount(2)
+        assertEquals(1, result)
+    }
+
+    @Test
+    fun getUnreadChatsCount_lastMessagesNoCurrentUserId() {
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(1, Message(text = "message"))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(3, Message(text = "message"))
+        val result = ChatService.getUnreadChatsCount(2)
+        assertEquals(0, result)
+    }
+
+    @Test(expected = ChatNotFoundException::class)
+    fun getUnreadChatsCount_noChats() {
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        ChatService.getUnreadChatsCount(3)
+    }
+
+    @Test
+    fun getLastMessagesOfChats_messages() {
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(1, Message(text = "message"))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(3, Message(text = "message"))
+        val string = listOf("message", "message")
+        val result = ChatService.getLastMessagesOfChats(2)
         assertEquals(string, result)
     }
 
     @Test
     fun getLastMessagesOfChats_noMessages() {
-        ChatService.chatCreateAddMessage(1, Message("message_1", true))
-        ChatService.chatCreateAddMessage(1, Message("message_2", false))
-        ChatService.chatCreateAddMessage(2, Message("message_1", false))
-        ChatService.chatDeleteMessage(2,1)
-        val string = listOf("message_2", "No messages")
-        val result = ChatService.getLastMessagesOfChats()
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        ChatService.currentUserId = 2
+        ChatService.chatCreateAddMessage(3, Message(text = "message"))
+        ChatService.chatDeleteMessage(mutableListOf(Pair(3, 2)), 2, 1)
+        val string = listOf("message", "No messages")
+        val result = ChatService.getLastMessagesOfChats(2)
         assertEquals(string, result)
+    }
+
+    @Test(expected = ChatNotFoundException::class)
+    fun getLastMessagesOfChats_noChats() {
+        ChatService.currentUserId = 1
+        ChatService.chatCreateAddMessage(2, Message(text = "message"))
+        ChatService.getLastMessagesOfChats(3)
     }
 }
