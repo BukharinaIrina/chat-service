@@ -1,48 +1,66 @@
 package ru.netology
 
 fun main() {
-    ChatService.chatCreateAddMessage(1, Message("message_1"))
-    ChatService.chatCreateAddMessage(1, Message("message_2"))
-    ChatService.chatCreateAddMessage(1, Message("message_3"))
-    ChatService.chatCreateAddMessage(2, Message("message_1"))
-    ChatService.chatCreateAddMessage(2, Message("message_2"))
-    ChatService.chatCreateAddMessage(3, Message("message_1"))
-    ChatService.getChats()
+    ChatService.currentUserId = 1
+    ChatService.chatCreateAddMessage(2, Message(text = "message"))
+    ChatService.currentUserId = 2
+    ChatService.chatCreateAddMessage(1, Message(text = "message"))
+    ChatService.currentUserId = 1
+    ChatService.chatCreateAddMessage(2, Message(text = "message"))
+
+    ChatService.currentUserId = 2
+    ChatService.chatCreateAddMessage(3, Message(text = "message"))
+    ChatService.currentUserId = 3
+    ChatService.chatCreateAddMessage(2, Message(text = "message"))
+    ChatService.currentUserId = 2
+    ChatService.chatCreateAddMessage(3, Message(text = "message"))
+
+    ChatService.currentUserId = 3
+    ChatService.chatCreateAddMessage(1, Message(text = "message"))
+    ChatService.currentUserId = 1
+    ChatService.chatCreateAddMessage(3, Message(text = "message"))
+    ChatService.currentUserId = 3
+    ChatService.chatCreateAddMessage(1, Message(text = "message"))
+
+    ChatService.currentUserId = 2
+    ChatService.chatCreateAddMessage(1, Message(text = "message"))
+
+    displayMap(ChatService.chats)
     println()
 
-    displayList(ChatService.getChat(2))
+    ChatService.currentUserId = 2
+    ChatService.chatEditMessage(mutableListOf(Pair(2, 3)), 2, 1, "newMessageText")
+    ChatService.currentUserId = 3
+    ChatService.chatEditMessage(mutableListOf(Pair(2, 3)), 3, 2, "newMessageText")
+    displayMap(ChatService.getChat(mutableListOf(Pair(3, 2))))
     println()
 
-    ChatService.chatEditMessage(1, 2)
-    displayList(ChatService.getChat(1))
+    displayMap(ChatService.getChats(1))
+    println(ChatService.getUnreadChatsCount(1))
+    println(ChatService.getLastMessagesOfChats(1))
+    displayList(ChatService.getListMessagesOfChat(mutableListOf(Pair(1, 2)), 1, 3))
     println()
 
-    println(ChatService.getUnreadChatsCount())
+    ChatService.currentUserId = 3
+    ChatService.chatDeleteMessage(mutableListOf(Pair(1, 3)), 3, 3)
+    displayMap(ChatService.getChat(mutableListOf(Pair(3, 1))))
+    ChatService.chatDeleteMessage(mutableListOf(Pair(1, 3)), 3, 1)
+    displayMap(ChatService.getChat(mutableListOf(Pair(3, 1))))
+    ChatService.currentUserId = 1
+    ChatService.chatDeleteMessage(mutableListOf(Pair(1, 3)), 1, 1)
+    displayMap(ChatService.getChat(mutableListOf(Pair(3, 1))))
     println()
 
-    displayList(ChatService.getListMessagesOfChat(1, 1, 1))
+    displayMap(ChatService.getChats(3))
+    println(ChatService.getLastMessagesOfChats(3))
     println()
 
-    println(ChatService.getLastMessagesOfChats())
-    println()
-
-    ChatService.chatDeleteMessage(2, 1)
-    displayList(ChatService.getChat(2))
-    ChatService.chatDeleteMessage(2, 1)
-    displayList(ChatService.getChat(2))
-    println()
-
-    println(ChatService.getLastMessagesOfChats())
-    println()
-
-    ChatService.chatDelete(3)
-    ChatService.getChats()
-    println()
-
-    println(ChatService.getUnreadChatsCount())
+    ChatService.currentUserId = 3
+    ChatService.chatDelete(mutableListOf(Pair(3, 1)))
+    displayMap(ChatService.chats)
+    println(ChatService.getUnreadChatsCount(2))
     println()
 }
-
 
 
 

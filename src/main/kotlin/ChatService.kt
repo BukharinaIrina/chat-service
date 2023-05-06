@@ -1,94 +1,146 @@
 package ru.netology
 
 object ChatService {
-    private var chats = mutableMapOf<Int, Chat>()
+    var currentUserId: Int = 0
+    private var userPair = mutableListOf<Pair<Int, Int>>()
+    var chats = mutableMapOf<MutableList<Pair<Int, Int>>, Chat>()
 
     fun clear() {
+        currentUserId = 0
+        userPair = mutableListOf()
         chats = mutableMapOf()
     }
 
-    //Создание чата. Чат создаётся, когда пользователю отправляется первое сообщение.
-    //Если чат у пользователя уже есть, то сообщение добавляется к нему.
-    fun chatCreateAddMessage(userId: Int, message: Message): Chat {
-        return chats.getOrPut(userId) { Chat() }.apply { messages.add(message) }
+    //Создание и проверка пары.
+    private fun pair(userPair: MutableList<Pair<Int, Int>>): MutableList<Pair<Int, Int>> {
+        for ((i) in userPair.withIndex()) {
+            if (userPair[i].first > userPair[i].second) {
+                userPair[i] = userPair[i].copy(first = userPair[i].second, second = userPair[i].first)
+            }
+        }
+        return userPair
     }
 
-    // Редактирование сообщения.
-    fun chatEditMessage(userId: Int, messageNumber: Int): Boolean {
-        if (chats[userId] == null) {
-            throw ChatNotFoundException("No chat with user id $userId")
-        }
+    //Создание чата. Чат создаётся, когда текущий пользователь отправляет первое сообщение.
+    //Если чат у пользователя уже есть, то сообщение добавляется к нему.
+    //Все предыдущие сообщения считаются прочитанными.
+    fun chatCreateAddMessage(pairUserId: Int, message: Message): Chat {
+        userPair = mutableListOf(Pair(currentUserId, pairUserId))
+        pair(userPair)
+        return chats
+            .getOrPut(userPair) { Chat() }
+            .apply {
+                messages.run {
+                    asSequence()
+                    add(message)
+                }
+                messages.last().authorMessageId = currentUserId
+                messages.dropLast(1)
+                    .forEach { it.readFlag = true }
+            }
+    }
+
+    //Редактирование сообщения текущего пользователя.
+    fun chatEditMessage(
+        userPair: MutableList<Pair<Int, Int>>,
+        currentUserId: Int,
+        messageNumber: Int,
+        messageText: String
+    ): Boolean {
+        pair(userPair)
+        if (chats[userPair] == null) throw ChatNotFoundException("No chat")
         try {
-            chats.filter { it.key == userId }.values.forEach { it.messages[messageNumber - 1].text = "MESSAGE_2" }
+            chats.filter { it.key == userPair }
+                .values.asSequence()
+                .filter { it.messages[messageNumber - 1].authorMessageId == currentUserId }
+                .forEach { it.messages[messageNumber - 1].text = messageText }
         } catch (e: IndexOutOfBoundsException) {
-            println("No message $messageNumber with user chat id $userId")
+            println("No message")
         }
         return true
     }
 
-    //Удаление сообщения.
-    fun chatDeleteMessage(userId: Int, messageNumber: Int): Boolean {
+    //Удаление сообщения текущего пользователя.
+    fun chatDeleteMessage(
+        userPair: MutableList<Pair<Int, Int>>,
+        currentUserId: Int,
+        messageNumber: Int
+    ): Boolean {
+        pair(userPair)
+        if (chats[userPair] == null) throw ChatNotFoundException("No chat")
         try {
-            chats[userId]?.messages?.removeAt(messageNumber - 1)
-                ?: throw ChatNotFoundException("No chat with user id $userId")
+            chats.filter { it.key == userPair }
+                .values.asSequence()
+                .filter { it.messages[messageNumber - 1].authorMessageId == currentUserId }
+                .forEach { it.messages.removeAt(messageNumber - 1) }
         } catch (e: IndexOutOfBoundsException) {
-            println("No message $messageNumber with user chat id $userId")
+            println("No message")
         }
         return true
     }
 
     //Удаление чата (целиком удаляется вся переписка).
-    fun chatDelete(userId: Int): Boolean {
-        if (chats[userId] == null) {
-            throw ChatNotFoundException("No chat with user id $userId")
-        }
-        chats.remove(userId)
+    fun chatDelete(userPair: MutableList<Pair<Int, Int>>): Boolean {
+        pair(userPair)
+        if (chats[userPair] == null) throw ChatNotFoundException("No chat")
+        chats.remove(userPair)
         return true
     }
 
-    //Получение списка чатов.
-    fun getChats() {
-        displayMap(chats)
+    //Получение всех чатов текущего пользователя.
+    fun getChats(currentUserId: Int): Map<MutableList<Pair<Int, Int>>, Chat> {
+        return chats.filterKeys { it.first().first == currentUserId || it.first().second == currentUserId }
     }
 
-    //Получение чата пользователя.
-    fun getChat(userId: Int): List<Pair<Int, Chat>> {
-        if (chats[userId] == null) {
-            throw ChatNotFoundException("No chat with user id $userId")
-        }
-        return chats.filter { it.key == userId }.toList()
+    //Получение конкретного чата текущего пользователя.
+    fun getChat(userPair: MutableList<Pair<Int, Int>>): Map<MutableList<Pair<Int, Int>>, Chat> {
+        pair(userPair)
+        if (chats[userPair] == null) throw ChatNotFoundException("No chat")
+        return chats.filter { it.key == userPair }
     }
 
-    /*Получение списка сообщений из чата, указав:
-   номер чата;
-   номер последнего сообщения, начиная с которого нужно подгрузить более новые;
-   количество сообщений.
-   После того как вызвана эта функция, все отданные сообщения автоматически считаются прочитанными.*/
-    fun getListMessagesOfChat(userId: Int, messageNumber: Int, count: Int): List<Message> {
+    /*Получение списка сообщений из чата текущего пользователя, указав:
+    ключ чата;
+    номер последнего сообщения, начиная с которого нужно подгрузить более новые;
+    количество сообщений.
+    После того как вызвана эта функция, все отданные сообщения автоматически считаются прочитанными.*/
+    fun getListMessagesOfChat(userPair: MutableList<Pair<Int, Int>>, messageNumber: Int, count: Int): List<Message> {
+        pair(userPair)
+        if (chats[userPair] == null) throw ChatNotFoundException("No chat")
         try {
-            val list = chats[userId]?.messages?.subList(messageNumber - 1, messageNumber + count)
-            list?.forEach { it.readFlag = true }
-                ?: throw ChatNotFoundException("No chat with user id $userId")
-            return list
+            return chats
+                .getValue(userPair)
+                .apply {
+                    messages.run {
+                        asSequence()
+                        subList(messageNumber - 1, messageNumber + count)
+                    }
+                    messages.forEach { it.readFlag = true }
+                }.messages
         } catch (e: IndexOutOfBoundsException) {
             println("Input error messageNumber or count")
         }
         return emptyList()
     }
 
-    //Количество непрочитанных чатов.
+    //Количество непрочитанных чатов текущего пользователя.
     //В каждом из таких чатов есть хотя бы одно непрочитанное сообщение.
-    fun getUnreadChatsCount(): Int {
-        var count = 0
-        if (chats.isNotEmpty()) {
-            count = chats.values.count { it.messages.count { !it.readFlag } != 0 }
-        }
-        return count
+    fun getUnreadChatsCount(currentUserId: Int): Int {
+        val chatsCurrentUserId = getChats(currentUserId)
+        if (chatsCurrentUserId.isEmpty()) throw ChatNotFoundException("No chat")
+        return chatsCurrentUserId
+            .values
+            .count { (it.messages.lastOrNull()?.authorMessageId != currentUserId) && (!it.messages.last().readFlag) }
     }
 
-    //Получение списка последних сообщений из чатов.
+    //Получение списка последних сообщений из чатов текущего пользователя.
     //Если сообщений в чате нет (все были удалены), то пишется «нет сообщений».
-    fun getLastMessagesOfChats(): List<String> {
-        return chats.values.map { it.messages.lastOrNull()?.text ?: "No messages" }
+    fun getLastMessagesOfChats(currentUserId: Int): List<String> {
+        val chatsCurrentUserId = getChats(currentUserId)
+        if (chatsCurrentUserId.isEmpty()) throw ChatNotFoundException("No chat")
+        return chatsCurrentUserId
+            .values.asSequence()
+            .map { it.messages.lastOrNull()?.text ?: "No messages" }
+            .toList()
     }
 }
